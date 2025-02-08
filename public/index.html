@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fatoki Lawrence</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f7f7f7e0;
+    }
+    #main-container {
+      display: flex;
+      justify-content: space-between;
+      margin: 1%;
+    }
+
+    #map {
+      width: 80vw;
+      height: 90vh;
+    }
+
+    .side-pan {
+      width: 17vw;
+      height: 70vh;
+    }
+
+    h1 {
+      background: #0b64b823;
+      padding: 10px;
+      padding-left: 4%;
+      color: #1a1a1ac9;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .features-container {
+      width: 100%;
+      height: 88vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .features-container div {
+      width: 100%;
+      padding: 2% 5%;
+      background-color: rgba(255, 255, 255, 0.842);;
+      box-shadow: 5px 5px 5px 5px rgba(0, 0, 0, 0.1);
+      font-size: 16px;
+      font-weight: 200;
+      color: #1a1a1ad7;
+      text-align: center;
+      border-radius: 8px;
+    }
+
+    .features-container div:hover {
+      border-left: 5px solid #e9171775;
+      box-shadow: 8px 8px 8px 8px rgba(0, 0, 0, 0.1);
+      font-size: 18px;
+    }
+
+    .features-container i {
+      color: rgb(0, 0, 0);
+    }
+
+    #radiusSlider {
+      -webkit-appearance: none; /* Remove default styles */
+      width: 100%;
+      height: 8px;
+      background: #dddddd38;
+      border-radius: 5px;
+      outline: none;
+      transition: background 0.3s;
+      cursor: pointer;
+    }
+
+    #colorPicker {
+      -webkit-appearance: none;
+      border: none;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      border-radius: 50%;
+      padding: 0;
+      background: none;
+    }
+
+    #this-one {
+      border-left: 5px solid #e9171775;
+      box-shadow: 8px 8px 8px 8px rgba(0, 0, 0, 0.2);
+      font-size: 18px;
+      font-weight: 400;
+    }
+    
+    button {
+      width: 100%;
+    }
+
+    h3 { font-weight: 600; color: #1a1a1a; }
+    .message-container { width: 100%; position: relative;}
+    #user-response, #ai-response { background: #007bff; padding: 5%; color: white; border-radius: 8px; width: 80%; }
+    textarea, input { width: 100%; height: 40px; border: 1px solid #1a1a1a; margin-top: 5%; padding: 5%; border-radius: 8px; }
+    input[type=submit] { background: #1a1a1a; color: white; }
+    input[type=submit]:hover { background: #007bff; border: none; }
+    #user-response {
+      background: #e9171775;
+      position: relative;
+      left: 20%;
+      margin: 0 0 5%;
+    }
+
+    .btn {
+      background: #e9171775;
+      color: white;
+      font-weight: 400;
+    }
+    .btn:hover {
+      background: #1a1a1a;
+      color: white;
+    }
+    
+    #dropdown {
+      width: 100%;
+      padding: 2%;
+      margin: 5% 0;
+      background: none;
+      color: #1a1a1a;
+      border: none;
+      border-left: 3px solid #1a1a1a;
+      border-radius: 0px 8px 8px 0px;
+      }
+    #dropdown:focus {
+      border: none;
+      outline: none;
+    }
+
+    #dropdown:hover {
+      background: none;
+      border: 1px solid #1a1a1a;
+      border-left: 3px solid #1a1a1a;
+      color: #1a1a1a;
+    }
+
+
+  </style>
+</head>
+<body>
+  <div id="main-container">
+    <div class="side-pan">
+      <div class="features-container">
+        <input id="search-input" placeholder="📍 where?">
+        <button id="search-btn" class="btn">Go</button>
+        <div class="feature buildings"><img src="assets/skyscraper.png" width=90> <br><br>Buildings</div>
+        <div id="this-one" class="feature streets"><img src="assets/motorway.png" width=90> <br><br>Streets</div>
+        <div class="feature places"><img src="assets/location-pin.png" width=90> <br><br>Places</div>
+      </div>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([6.5244, 3.3792], 18); // Lagos, Nigeria
+    let radius = 30;
+    let color = "#ff5733"
+    let circle_marker_array = [];
+    let circle_ploygon_array = [];
+    let data_type = "streets";
+    let dataForAI = [];
+
+
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+
+    const googleSatLayer = L.tileLayer(
+      'http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}', 
+      {
+        attribution: '&copy; Google'
+      }
+    );
+
+    const cartoDBLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+      attribution: '&copy; CartoDB, &copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const baseMaps = {
+      "CartoDB Positron": cartoDBLayer,
+      "OpenStreetMap": osmLayer,
+      "Google Satellite": googleSatLayer,
+    };
+    L.control.layers(baseMaps).addTo(map);
+
+
+
+    document.getElementById("search-btn").addEventListener("click", ()=>{
+      search_input = document.getElementById("search-input");
+      search_query = search_input.value;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(search_query)}`;
+      fetch(url)
+          .then(response => response.json())
+          .then(data => {
+            if (data.length > 0) {
+              const lat = data[0].lat;
+              const lon = data[0].lon;
+              console.log(`Latitude: ${lat}, Longitude: ${lon}`);
+
+              const latLon = [lat, lon];
+              map.setView(latLon, 13);
+            }
+          })
+      search_input.value = "";
+    });
+
+    document.querySelectorAll(".feature").forEach(element => {
+        element.addEventListener("click", function() {
+          data_type = element.classList[1];
+          document.getElementById("this-one").removeAttribute("id");
+          element.setAttribute("id", "this-one");
+        });
+    });
+
+    const cursorCircle = L.circle([6.5244, 3.3792], {
+      radius: radius,
+      color: "#ff5733",
+      fillColor: '#ff5733',
+      fillOpacity: 0.1,
+    }).addTo(map);
+
+    map.on('mousemove', function (e) {
+      cursorCircle.setLatLng(e.latlng);
+    });
+
+    cursorCircle.on('contextmenu', function (e) {
+      const { lat, lng } = e.latlng;
+
+      const popupCon = `
+        <h3><i class="fa-solid fa-gear"></i> Circle setting</h3>
+        <span>Radius (<span id="radiusValue">${radius}m</span>)</span>
+        <input type="range" id="radiusSlider" min="10" max="500" value="${radius}" step="10" style="width: 100%;">
+        <br><br>
+        <div>Circle theme: <br>
+          <input type="color" id="colorPicker" value="${color}">
+        </div>
+      `;
+
+      const popup = L.popup()
+        .setLatLng([lat, lng])
+        .setContent(popupCon)
+        .openOn(map);
+
+      if (popup.isOpen()) {
+        const slider = document.getElementById('radiusSlider');
+        const radiusValue = document.getElementById('radiusValue');
+        const colorPicker = document.getElementById('colorPicker');
+
+        slider.addEventListener('input', function () {
+          const newRadius = parseInt(slider.value, 10);
+          radiusValue.textContent = newRadius;
+          radius = parseInt(slider.value, 10);
+          cursorCircle.setRadius(newRadius);
+        });
+
+        colorPicker.addEventListener("change", function() {
+          cursorCircle.setStyle({"color": colorPicker.value, "fillColor": colorPicker.value});
+          color = colorPicker.value
+        });
+      }
+    });
+
+
+    function getData(lat, lng, radius, data_type) {
+      let query = "";
+      if (data_type == "buildings"){
+        data = "building";
+        query = `
+          [out:json];
+          (
+            way[${data}](around:${radius},${lat},${lng});
+            relation[${data}](around:${radius},${lat},${lng});
+          );
+          out body;
+          >;
+          out meta;
+        `;
+      } else if (data_type == "streets"){
+        data = "highway"
+        query = `
+          [out:json];
+          (
+            way[${data}](around:${radius},${lat},${lng});
+            relation[${data}](around:${radius},${lat},${lng});
+          );
+          out body;
+          >;
+          out meta;
+        `;
+      }
+      
+
+      if (data_type == 'places'){
+        query = `
+          [out:json];
+          (
+            node["shop"="supermarket"](around:${radius}, ${lat}, ${lng});
+            node["amenity"~"restaurant|hospital|bank|school|cafe|pharmacy"](around:${radius}, ${lat}, ${lng});
+            node["tourism"~"museum|hotel|attraction"](around:${radius}, ${lat}, ${lng});
+            node["leisure"~"park|sports_centre"](around:${radius}, ${lat}, ${lng});
+          );
+          out body;
+          >;
+          out meta;
+          `;
+      }
+
+      const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
+      return fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          return data
+        });
+    }
+
+
+    function add_cirlce(e){
+      const { lat, lng } = e.latlng;
+      center_dot = L.circle(e.latlng, {
+        radius: 2,
+        color: '#1a1a1a',
+        fillColor: '#1a1a1a',
+        fillOpacity: 1,
+      }).addTo(map);
+
+      appliedCircle = L.circle(e.latlng, {
+        radius: radius,
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.15,
+      }).addTo(map);
+
+      circle_marker_array.push(appliedCircle);
+      circle_marker_array.push(center_dot)
+
+
+
+      appliedCircle.on('click', function (e) {
+        const { lat, lng } = e.latlng;
+        
+        const popupContent = `
+          <style>
+            
+          </style>
+          <div>
+            <h3>AI ASSISTANT</h3><br>
+            <div id="message-container"></div>
+              <textarea id="user-message" name="message" placeholder="Type in your prompt..." required></textarea>
+              <br>
+              <button class="btn" id="btn">Ask AI</button>
+            <br>
+            <hr>
+            <div>
+              <label for="dropdown">Choose data type:</label>
+              <select id="dropdown" name="options">
+                  <option id="buildings" value="buildings">Buildings</option>
+                  <option id="streets" value="streets">Streets</option>
+                  <option id="places" value="places">Places</option>
+              </select>
+            </div>
+          </div>
+        `;
+        const popup = L.popup()
+          .setLatLng([lat, lng])
+          .setContent(popupContent)
+          .openOn(map);
+
+      
+
+        if (popup.isOpen()) {
+          console.log("ok....")
+          btn = document.getElementById("btn")
+          dropdown = document.getElementById("dropdown");
+
+          dropdown.value = data_type;
+          dropdown.addEventListener("change", (e)=>{
+          
+            for (let polygon of circle_ploygon_array) {
+              polygon.remove();
+            }
+
+            circle_ploygon_array = [];
+            const { lat, lng } = center_dot.getLatLng();
+            dataForAI = [];
+            data_type = dropdown.value;
+            getData(lat, lng, radius, data_type).then(data => {
+              data.elements.forEach(el => {
+                console.log(el.tags)
+                dataForAI.push(el.tags);
+                if (el.type === 'way' && el.nodes) {
+                  const coordinates = el.nodes.map(nodeId =>
+                    data.elements.find(n => n.id === nodeId)
+                  ).map(node => [node.lat, node.lon]);
+
+                  if (data_type == "buildings"){
+                    polygon = L.polygon(coordinates, {
+                      color: color,
+                      weight: 1,
+                      fillOpacity: 0.5,
+                    }).addTo(map);
+
+                  } else if (data_type == "streets"){
+                      polygon = L.polyline(coordinates, {
+                        color: color,
+                        weight: 3,
+                        fillOpacity: 0.5,
+                      }).addTo(map);
+                  }
+
+                  circle_ploygon_array.push(polygon)
+                }
+      
+                if (el.type === 'node' && el.lat && el.lon && data_type=="places") {
+
+                  let markerColor = "#D96BFF"; // Default color
+
+                  if (el.tags && el.tags.shop === "supermarket") {
+                    markerColor = "#FF6B6B";  // Coral Red
+                  } else if (el.tags && el.tags.amenity === "restaurant") {
+                    markerColor = "#FF9A6B";  // Warm Peach
+                  } else if (el.tags && el.tags.amenity === "hospital") {
+                    markerColor = "#6BFF92";  // Bright Green
+                  } else if (el.tags && el.tags.amenity === "museum") {
+                    markerColor = "#6B92FF";  // Cool Blue
+                  } else if (el.tags && el.tags.amenity === "tourism") {
+                    markerColor = "#FFD56B";  // Golden Yellow
+                  } else if (el.tags && el.tags.amenity === "banks") {
+                    markerColor = "#D96BFF";  // Vibrant Purple
+                  } else if (el.tags && el.tags.amenity === "hotel") {
+                    markerColor = "#6BFFF5";  // Neon Cyan
+                  } else if (el.tags && el.tags.amenity === "school") {
+                    markerColor = "#FF6BB3";  // Soft Pink
+                  } else if (el.tags && el.tags.amenity === "pharmacy") {
+                    markerColor = "#6BFFB3";  // Mint Green
+                  } else if (el.tags && el.tags.amenity === "attraction") {
+                    markerColor = "#FFCC00";  // Bright Yellow
+                  }
+
+
+                
+                  polygon = L.circle([el.lat, el.lon], {
+                    radius: 5,
+                    color: markerColor,
+                    fillColor: markerColor,
+                    fillOpacity: 1,
+                  }).addTo(map).bindPopup(el.tags.name || "Unnamed Place");
+                  circle_ploygon_array.push(polygon)
+                }
+              })
+            });
+            document.getElementById("this-one").removeAttribute("id")
+            document.getElementsByClassName(`${data_type}`)[0].setAttribute("id", "this-one");
+          });
+            
+
+          btn.addEventListener("click", async function (event) {
+            event.preventDefault();
+            
+            input = document.getElementById("user-message");
+            const userMessage = input.value;
+            const message_container = document.getElementById("message-container");
+            message_container.innerHTML = "";
+            message_container.innerHTML += `<div id="user-response">${userMessage}</div>`;
+            try {
+              const response = await fetch(`/ask-ai?message=${encodeURIComponent(userMessage)}?data=${encodeURIComponent(JSON.stringify(dataForAI))}`);
+              const data = await response.json();
+        
+              message_container.innerHTML += `<div id="ai-response">${data.reply}</div>`;
+              input.value = "";
+            } catch (error) {
+              message_container.innerHTML += `<div id="ai-response">Radius too large to process</div>`;
+            }
+
+          });
+        }
+      });
+
+      dataForAI = [];
+      getData(lat, lng, radius, data_type).then(data => {
+        data.elements.forEach(el => {
+          dataForAI.push(el.tags);
+          if (el.type === 'way' && el.nodes) {
+            const coordinates = el.nodes.map(nodeId =>
+              data.elements.find(n => n.id === nodeId)
+            ).map(node => [node.lat, node.lon]);
+
+            if (data_type == "buildings"){
+              polygon = L.polygon(coordinates, {
+                color: color,
+                weight: 1,
+                fillOpacity: 0.5,
+              }).addTo(map);
+
+            } else if (data_type == "streets"){
+                polygon = L.polyline(coordinates, {
+                  color: color,
+                  weight: 3,
+                  fillOpacity: 0.5,
+                }).addTo(map);
+            }
+
+            circle_ploygon_array.push(polygon)
+          }
+
+          if (el.type === 'node' && el.lat && el.lon && data_type=="places") {
+            let markerColor = "FF6B6B";
+
+            if (el.tags && el.tags.shop === "supermarket") {
+              markerColor = "#FF6B6B";  // Coral Red
+            } else if (el.tags && el.tags.amenity === "restaurant") {
+              markerColor = "#FF9A6B";  // Warm Peach
+            } else if (el.tags && el.tags.amenity === "hospital") {
+              markerColor = "#6BFF92";  // Bright Green
+            } else if (el.tags && el.tags.amenity === "museum") {
+              markerColor = "#6B92FF";  // Cool Blue
+            } else if (el.tags && el.tags.amenity === "tourism") {
+              markerColor = "#FFD56B";  // Golden Yellow
+            } else if (el.tags && el.tags.amenity === "banks") {
+              markerColor = "#D96BFF";  // Vibrant Purple
+            } else if (el.tags && el.tags.amenity === "hotel") {
+              markerColor = "#6BFFF5";  // Neon Cyan
+            } else if (el.tags && el.tags.amenity === "school") {
+              markerColor = "#FF6BB3";  // Soft Pink
+            } else if (el.tags && el.tags.amenity === "pharmacy") {
+              markerColor = "#6BFFB3";  // Mint Green
+            } else if (el.tags && el.tags.amenity === "attraction") {
+              markerColor = "#FFCC00";  // Bright Yellow
+            }
+
+            polygon = L.circle([el.lat, el.lon], {
+              radius: 5,
+              color: markerColor,
+              fillColor: markerColor,
+              fillOpacity: 1,
+            }).addTo(map).bindPopup(el.tags.name || "Unnamed Place");
+
+            circle_ploygon_array.push(polygon)
+          }
+        })
+      });
+
+    }
+
+
+
+  function getCircleUnderCursor(latlng) {
+    for (let circle of circle_marker_array) {
+        let center = circle.getLatLng();
+        let radius = circle.getRadius(); // Radius in pixels
+
+        // Calculate distance from cursor to circle center
+        let distance = latlng.distanceTo(center);
+
+        // Check if the cursor is inside the circle
+        if (distance <= radius) {
+            return circle; // Return the circle if found
+        }
+    }
+    for (let circle of circle_marker_array) {
+      circle.remove();
+    }
+    for (let polygon of circle_ploygon_array) {
+      polygon.remove();
+    }
+    circle_marker_array =[];
+    circle_ploygon_array = [];
+
+
+    return null; // Return null if no circle is found
+  }
+
+    var appliedCircle = "none";
+    map.on('click', function (e) {
+      const cursorLatLng = e.latlng;
+      if (circle_marker_array.length != 0) {
+        response = getCircleUnderCursor(cursorLatLng)
+        console.log(response);
+        if (response === null) {
+          add_cirlce(e);
+        } else {
+          console.log("something")
+        }
+      } else {
+        add_cirlce(e);
+      }
+    })
+  </script>
+</body>
+</html>
